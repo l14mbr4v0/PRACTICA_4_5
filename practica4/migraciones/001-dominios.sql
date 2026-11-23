@@ -97,6 +97,10 @@ END $$;
 
 -- Tabla CLIENTE
 ALTER TABLE "CLIENTE" 
+    ADD COLUMN IF NOT EXISTS "rfc" VARCHAR(13),
+    ADD COLUMN IF NOT EXISTS "nombre" VARCHAR(150);
+
+ALTER TABLE "CLIENTE" 
     ALTER COLUMN "rfc" TYPE rfc_mexicano USING "rfc"::rfc_mexicano,
     ALTER COLUMN "nombre" SET NOT NULL,
     ALTER COLUMN "codigo_postal" TYPE codigo_postal_tipo USING "codigo_postal"::codigo_postal_tipo,
@@ -106,6 +110,7 @@ ALTER TABLE "CLIENTE"
     ALTER COLUMN "colonia" SET NOT NULL;
 
 -- Restricción UNIQUE simple en RFC de cliente
+ALTER TABLE "CLIENTE" DROP CONSTRAINT IF EXISTS "uq_cliente_rfc";
 ALTER TABLE "CLIENTE" ADD CONSTRAINT "uq_cliente_rfc" UNIQUE ("rfc");
 
 -- Tabla CLIENTE_TELEFONO
@@ -122,6 +127,7 @@ ALTER TABLE "POLIZA"
     ADD COLUMN IF NOT EXISTS "prima_total" monto_dinero DEFAULT 0.00;
 
 -- CHECK Constraint 7: Fecha fin debe ser estrictamente posterior a fecha de inicio
+ALTER TABLE "POLIZA" DROP CONSTRAINT IF EXISTS "chk_poliza_fechas";
 ALTER TABLE "POLIZA" ADD CONSTRAINT "chk_poliza_fechas" 
     CHECK ("fecha_fin" > "fecha_inicio");
 
@@ -139,6 +145,7 @@ ALTER TABLE "ACCIDENTE"
     ADD COLUMN IF NOT EXISTS "descripcion_hechos" TEXT;
 
 -- CHECK Constraint 8: La fecha del accidente no puede estar en el futuro
+ALTER TABLE "ACCIDENTE" DROP CONSTRAINT IF EXISTS "chk_accidente_fecha_pasada";
 ALTER TABLE "ACCIDENTE" ADD CONSTRAINT "chk_accidente_fecha_pasada" 
     CHECK ("fecha" <= CURRENT_TIMESTAMP);
 
@@ -153,6 +160,7 @@ ALTER TABLE "VEHICULO"
     ADD COLUMN IF NOT EXISTS "anio" INT NOT NULL DEFAULT 2024;
 
 -- CHECK Constraint 9: Año del vehículo razonable (1950 hasta el año actual + 1)
+ALTER TABLE "VEHICULO" DROP CONSTRAINT IF EXISTS "chk_vehiculo_anio";
 ALTER TABLE "VEHICULO" ADD CONSTRAINT "chk_vehiculo_anio" 
     CHECK ("anio" >= 1950 AND "anio" <= 2027);
 
@@ -180,6 +188,7 @@ ALTER TABLE "TALLER"
     ADD COLUMN IF NOT EXISTS "especialidad" VARCHAR(50) NOT NULL DEFAULT 'GENERAL';
 
 -- Restricción UNIQUE simple en RFC de taller
+ALTER TABLE "TALLER" DROP CONSTRAINT IF EXISTS "uq_taller_rfc";
 ALTER TABLE "TALLER" ADD CONSTRAINT "uq_taller_rfc" UNIQUE ("RFC_TALLER");
 
 
@@ -205,6 +214,7 @@ ALTER TABLE "RECLAMACION"
     ADD COLUMN IF NOT EXISTS "estado" VARCHAR(30) NOT NULL DEFAULT 'PENDIENTE';
 
 -- CHECK Constraint 10: Estado válido de reclamación
+ALTER TABLE "RECLAMACION" DROP CONSTRAINT IF EXISTS "chk_reclamacion_estado";
 ALTER TABLE "RECLAMACION" ADD CONSTRAINT "chk_reclamacion_estado" 
     CHECK ("estado" IN ('PENDIENTE', 'APROBADA', 'PAGADA', 'RECHAZADA', 'CANCELADA'));
 

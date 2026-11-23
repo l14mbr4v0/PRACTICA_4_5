@@ -1,6 +1,8 @@
 
 CREATE TABLE "CLIENTE" (
   "ID_CLIENTE" int PRIMARY KEY,
+  "rfc" varchar,
+  "nombre" varchar,
   "codigo_postal" varchar,
   "ciudad" varchar,
   "calle" varchar,
