@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Seguros de Auto - ESCOM IPN | Panel de Gestión y Pruebas</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        slate: {
+                            850: '#1e293b',
+                            900: '#0f172a',
+                        },
+                        indigo: {
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        },
+                        emerald: {
+                            600: '#059669',
+                            500: '#10b981',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['"Inter"', '"Plus Jakarta Sans"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Alpine.js for lightweight reactivity -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col justify-between" x-data="insuranceApp()">
+
+    <!-- Top Notification Toast -->
+    <div aria-live="assertive" class="fixed inset-0 flex items-end px-4 py-6 pointer-events-none sm:p-6 sm:items-start z-50">
+        <div class="w-full flex flex-col items-center space-y-4 sm:items-end">
+            <template x-for="toast in toasts" :key="toast.id">
+                <div x-transition:enter="transform ease-out duration-300 transition"
+                     x-transition:enter-start="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2"
+                     x-transition:enter-end="translate-y-0 opacity-100 sm:translate-x-0"
+                     x-transition:leave="transition ease-in duration-100"
+                     x-transition:leave-start="opacity-100"
+                     x-transition:leave-end="opacity-0"
+                     class="max-w-sm w-full bg-white shadow-lg rounded-2xl pointer-events-auto ring-1 ring-black ring-opacity-5 overflow-hidden border-l-4"
+                     :class="toast.type === 'success' ? 'border-emerald-500' : 'border-indigo-500'">
+                    <div class="p-4">
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <i :class="toast.type === 'success' ? 'fa-solid fa-circle-check text-emerald-500' : 'fa-solid fa-circle-info text-indigo-500'" class="text-xl"></i>
+                            </div>
+                            <div class="ml-3 w-0 flex-1 pt-0.5">
+                                <p class="text-sm font-semibold text-slate-900" x-text="toast.title"></p>
+                                <p class="mt-1 text-sm text-slate-600" x-text="toast.message"></p>
+                            </div>
+                            <div class="ml-4 flex-shrink-0 flex">
+                                <button @click="removeToast(toast.id)" class="bg-white rounded-md text-slate-400 hover:text-slate-550 focus:outline-none">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <!-- Header Navigation -->
+    <header class="bg-slate-900 text-white shadow-xl sticky top-0 z-40 border-b border-slate-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <div class="bg-indigo-600 text-white p-3 rounded-xl shadow-lg flex items-center justify-center">
+                    <i class="fa-solid fa-shield-halved text-2xl"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <h1 class="text-xl font-extrabold tracking-tight">SegurosAuto ESCOM</h1>
+                        <span class="bg-indigo-500/20 text-indigo-400 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-indigo-500/30">v2.5 DB</span>
+                    </div>
+                    <p class="text-xs text-slate-400">Sistema Integral de Gestión de Pólizas, Vehículos y Siniestros (PostgreSQL / Docker)</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <span class="hidden md:inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="w-2 h-2 mr-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                    PostgreSQL 5432 (Demo Memoria)
+                </span>
+                <button @click="showArchitectureModal = true" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl shadow-md transition transform hover:-translate-y-0.5">
+                    <i class="fa-solid fa-network-wired mr-2"></i> Ver Arquitectura BD
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full">
+
+        <!-- Intro Banner -->
+        <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl mb-8 relative overflow-hidden">
+            <div class="absolute right-0 top-0 transform translate-x-8 -translate-y-8 opacity-10 pointer-events-none">
+                <i class="fa-solid fa-car-burst text-[200px]"></i>
+            </div>
+            <div class="relative z-10 max-w-3xl">
+                <span class="text-indigo-400 font-semibold text-xs tracking-wider uppercase mb-2 block">Proyecto Bases de Datos • ESCOM IPN</span>
+                <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight mb-3">Panel de Operaciones de Seguros de Automóviles y Motocicletas</h2>
+                <p class="text-slate-300 text-sm sm:text-base leading-relaxed mb-6">
+                    Interfaz web interactiva conectada al modelo relacional normalizado con reglas de integridad referencial (<code class="bg-slate-800 px-2 py-0.5 rounded text-indigo-300">ON DELETE RESTRICT/CASCADE</code>) y dominios estrictos. Registre pólizas, vehículos con polimorfismo (Auto/Moto) y siniestros en memoria con validación en tiempo real.
+                </p>
+                <div class="flex flex-wrap gap-4 text-xs font-medium">
+                    <div class="flex items-center bg-white/10 px-3.5 py-1.5 rounded-xl backdrop-blur">
+                        <i class="fa-solid fa-user-shield text-indigo-400 mr-2"></i> Clientes & Teléfonos
+                    </div>
+                    <div class="flex items-center bg-white/10 px-3.5 py-1.5 rounded-xl backdrop-blur">
+                        <i class="fa-solid fa-file-contract text-indigo-400 mr-2"></i> Pólizas & Coberturas
+                    </div>
+                    <div class="flex items-center bg-white/10 px-3.5 py-1.5 rounded-xl backdrop-blur">
+                        <i class="fa-solid fa-car-side text-indigo-400 mr-2"></i> Automóviles & Motos
+                    </div>
+                    <div class="flex items-center bg-white/10 px-3.5 py-1.5 rounded-xl backdrop-blur">
+                        <i class="fa-solid fa-triangle-exclamation text-indigo-400 mr-2"></i> Reclamaciones & Pagos
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive Tabs Section -->
+        <div class="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden mb-10">
+            <!-- Tab Navigation Header -->
+            <div class="border-b border-slate-200 bg-slate-50 px-6 pt-4 flex overflow-x-auto no-scrollbar">
+                <nav class="flex space-x-4 sm:space-x-8" aria-label="Tabs">
+                    <button @click="activeTab = 1"
+                            :class="activeTab === 1 ? 'border-indigo-600 text-indigo-600 bg-white shadow-sm' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
+                            class="whitespace-nowrap py-4 px-6 border-b-2 font-semibold text-sm rounded-t-2xl transition flex items-center space-x-2.5">
+                        <div :class="activeTab === 1 ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'" class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold transition">1</div>
+                        <span>Cliente & Póliza</span>
+                    </button>
+
+                    <button @click="activeTab = 2"
+                            :class="activeTab === 2 ? 'border-indigo-600 text-indigo-600 bg-white shadow-sm' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
+                            class="whitespace-nowrap py-4 px-6 border-b-2 font-semibold text-sm rounded-t-2xl transition flex items-center space-x-2.5">
+                        <div :class="activeTab === 2 ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'" class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold transition">2</div>
+                        <span>Vehículo (Auto / Moto)</span>
+                    </button>
+
+                    <button @click="activeTab = 3"
+                            :class="activeTab === 3 ? 'border-indigo-600 text-indigo-600 bg-white shadow-sm' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'"
+                            class="whitespace-nowrap py-4 px-6 border-b-2 font-semibold text-sm rounded-t-2xl transition flex items-center space-x-2.5">
+                        <div :class="activeTab === 3 ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-600'" class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold transition">3</div>
+                        <span>Siniestro & Reclamación</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- Tab Content Body -->
+            <div class="p-6 sm:p-8">
+
+                <!-- PESTAÑA 1: CLIENTE & PÓLIZA -->
+                <div x-show="activeTab === 1" x-transition.opacity class="space-y-6">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-900 flex items-center">
+                                <i class="fa-solid fa-user-plus text-indigo-600 mr-2.5"></i> Registro de Cliente y Póliza de Seguro
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Ingresa los datos personales con validación de RFC mexicano, código postal y asignación de póliza.</p>
+                        </div>
+                        <span class="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-medium">Tablas: CLIENTE, CLIENTE_TELEFONO, POLIZA</span>
+                    </div>
+
+                    <form @submit.prevent="submitClientePoliza" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- ID Cliente -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">ID Cliente (PK)</label>
+                            <input type="number" x-model.number="formCliente.id_cliente" required placeholder="Ej. 101"
+                                   class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none transition">
+                        </div>
+
+                        <!-- RFC -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">RFC Mexicano</label>
+                            <input type="text" x-model="formCliente.rfc" required placeholder="Ej. VECJ880326XYZ" @input="formCliente.rfc = formCliente.rfc.toUpperCase()"
+                                   class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm uppercase focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none transition">
+                            <span class="text-[11px] text-slate-400 mt-1 block">Regex: ^[A-Z&Ñ]{3,4}[0-9]{6}[A-Z0-9]{3}$</span>
+                        </div>
+
+                        <!-- Nombre Completo -->
+                        <div class="md:col-span-2">
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Nombre Completo o Razón Social</label>
+                            <input type="text" x-model="formCliente.nombre" required placeholder="Ej. Juan Carlos Vázquez Estrada"
+                                   class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none transition">
+                        </div>
+
+                        <!-- Domicilio: Calle y Número -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Calle y Número Exterior</label>
+                            <div class="grid grid-cols-3 gap-2">
+                                <input type="text" x-model="formCliente.calle" required placeholder="Av. Insurgentes Sur" class="col-span-2 bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none transition">
+                                <input type="text" x-model="formCliente.numero_exterior" required placeholder="1420" class="bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none transition">
+                            </div>
+                        </div>
+
+                        <!-- Colonia y Ciudad -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Colonia</label>
+                                <input type="text" x-model="formCliente.colonia" required placeholder="Lindavista"
+                                       class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none transition">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Ciudad</label>
+                                <input type="text" x-model="formCliente.ciudad" required placeholder="Ciudad de México"
+                                       class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none transition">
+                            </div>
+                        </div>
+
+                        <!-- Código Postal y Teléfono -->
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Código Postal (5 dígitos)</label>
+                            <input type="text" x-model="formCliente.codigo_postal" required maxlength="5" placeholder="07730"
+                                   class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none transition">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Teléfono de Contacto (10 dígitos)</label>
+                            <input type="text" x-model="formCliente.telefono" required maxlength="10" placeholder="5512345678"
+                                   class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none transition">
+                        </div>
+
+                        <!-- Número de Póliza -->
+                        <div class="md:col-span-2 bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100 grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-indigo-900 mb-2">Número de Póliza (PK)</label>
+                                <input type="text" x-model="formCliente.num_poliza" required placeholder="POL-2026-9901"
+                                       class="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600 focus:outline-none transition">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-indigo-900 mb-2">Cobertura Inicial</label>
+                                <select x-model="formCliente.cobertura" class="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600 focus:outline-none transition">
+                                    <option value="Amplia Plus (Daños, Robo, RC, Gastos Médicos)">Amplia Plus (Daños, Robo, RC, Gastos Médicos)</option>
+                                    <option value="Limitada (Robo Total y Responsabilidad Civil)">Limitada (Robo Total y Responsabilidad Civil)</option>
+                                    <option value="Responsabilidad Civil Obligatoria">Responsabilidad Civil Obligatoria</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="md:col-span-2 flex justify-end space-x-3 pt-4 border-t border-slate-100">
+                            <button type="reset" class="px-5 py-3 rounded-xl border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-100 transition">Limpiar</button>
+                            <button type="submit" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-lg shadow-indigo-600/30 transition flex items-center">
+                                <i class="fa-solid fa-floppy-disk mr-2"></i> Registrar Cliente y Póliza
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- PESTAÑA 2: VEHÍCULO (AUTO / MOTO) -->
+                <div x-show="activeTab === 2" x-transition.opacity class="space-y-6" x-cloak>
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-900 flex items-center">
+                                <i class="fa-solid fa-car text-indigo-600 mr-2.5"></i> Registro de Vehículo (Polimorfismo Relacional)
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Seleccione el tipo de vehículo para desplegar atributos específicos (Automóvil o Motocicleta).</p>
+                        </div>
+                        <span class="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-medium">Tablas: VEHICULO, AUTOMOVIL, MOTOCICLETA</span>
+                    </div>
+
+                    <form @submit.prevent="submitVehiculo" class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <!-- Matrícula -->
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Matrícula / Placa (PK)</label>
+                                <input type="text" x-model="formVehiculo.matricula" required placeholder="Ej. XYZ-789-A" @input="formVehiculo.matricula = formVehiculo.matricula.toUpperCase()"
+                                       class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm uppercase focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none transition">
+                            </div>
+
+                            <!-- Tipo de Vehículo -->
+                            <div>
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Tipo de Vehículo</label>
+                                <select x-model="formVehiculo.tipo_vehiculo" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none transition">
+                                    <option value="AUTOMOVIL">Automóvil</option>
+                                    <option value="MOTOCICLETA">Motocicleta</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Campos dinámicos si es Automóvil -->
+                        <div x-show="formVehiculo.tipo_vehiculo === 'AUTOMOVIL'" class="bg-indigo-50/40 p-6 rounded-2xl border border-indigo-100 space-y-4">
+                            <h4 class="text-sm font-bold text-indigo-900 flex items-center"><i class="fa-solid fa-car-rear mr-2"></i> Atributos Específicos de Automóvil</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase tracking-wider text-indigo-900 mb-2">Número de Puertas</label>
+                                    <select x-model.number="formVehiculo.num_puertas" class="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600 focus:outline-none transition">
+                                        <option value="2">2 puertas (Coupé / Deportivo)</option>
+                                        <option value="4">4 puertas (Sedán / SUV)</option>
+                                        <option value="5">5 puertas (Hatchback)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase tracking-wider text-indigo-900 mb-2">Tipo de Transmisión</label>
+                                    <select x-model="formVehiculo.tipo_transmision" class="w-full bg-white border border-indigo-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600 focus:outline-none transition">
+                                        <option value="AUTOMATICA">Automática</option>
+                                        <option value="MANUAL">Manual / Estándar</option>
+                                        <option value="CVT">CVT</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Campos dinámicos si es Motocicleta -->
+                        <div x-show="formVehiculo.tipo_vehiculo === 'MOTOCICLETA'" class="bg-emerald-50/40 p-6 rounded-2xl border border-emerald-100 space-y-4" x-cloak>
+                            <h4 class="text-sm font-bold text-emerald-900 flex items-center"><i class="fa-solid fa-motorcycle mr-2"></i> Atributos Específicos de Motocicleta</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase tracking-wider text-emerald-900 mb-2">Cilindrada (CC)</label>
+                                    <input type="number" x-model.number="formVehiculo.cilindrada_cc" placeholder="Ej. 250" class="w-full bg-white border border-emerald-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-none transition">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold uppercase tracking-wider text-emerald-900 mb-2">Tipo de Manillar</label>
+                                    <select x-model="formVehiculo.tipo_manillar" class="w-full bg-white border border-emerald-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-emerald-600 focus:outline-none transition">
+                                        <option value="RECTO">Recto / Deportivo (Clip-on)</option>
+                                        <option value="DE_TUBO">De Tubo / Alt (Touring)</option>
+                                        <option value="COLGADO">Colgado (Chopper / Ape Hanger)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex justify-end space-x-3 pt-4 border-t border-slate-100">
+                            <button type="reset" class="px-5 py-3 rounded-xl border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-100 transition">Limpiar</button>
+                            <button type="submit" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-lg shadow-indigo-600/30 transition flex items-center">
+                                <i class="fa-solid fa-car mr-2"></i> Registrar Vehículo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- PESTAÑA 3: SINIESTRO & RECLAMACIÓN -->
+                <div x-show="activeTab === 3" x-transition.opacity class="space-y-6" x-cloak>
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-900 flex items-center">
+                                <i class="fa-solid fa-triangle-exclamation text-indigo-600 mr-2.5"></i> Registro de Siniestro, Reclamación y Pago
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Asocie una reclamación a un accidente y póliza existente, especificando el monto de indemnización.</p>
+                        </div>
+                        <span class="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-medium">Tablas: ACCIDENTE, RECLAMACION, PAGO_RECLAMACION</span>
+                    </div>
+
+                    <form @submit.prevent="submitReclamacion" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">ID Accidente (PK)</label>
+                            <input type="number" x-model.number="formReclamacion.id_accidente" required placeholder="Ej. 501"
+                                   class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none transition">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Número de Póliza Asociada</label>
+                            <input type="text" x-model="formReclamacion.num_poliza" required placeholder="POL-2026-9901"
+                                   class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none transition">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Número de Pago / Exhibición</label>
+                            <input type="text" x-model="formReclamacion.num_de_pago" required placeholder="PAGO-01"
+                                   class="w-full bg-slate-50 border border-slate-300 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none transition">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-2">Monto de Reclamación (MXN)</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-500 font-bold">$</span>
+                                <input type="number" step="0.01" x-model.number="formReclamacion.monto" required placeholder="18500.00"
+                                       class="w-full bg-slate-50 border border-slate-300 rounded-xl pl-8 pr-4 py-3 text-sm focus:ring-2 focus:ring-indigo-600 focus:bg-white focus:outline-none transition">
+                            </div>
+                        </div>
+
+                        <div class="md:col-span-2 flex justify-end space-x-3 pt-4 border-t border-slate-100">
+                            <button type="reset" class="px-5 py-3 rounded-xl border border-slate-300 text-slate-600 text-sm font-semibold hover:bg-slate-100 transition">Limpiar</button>
+                            <button type="submit" class="px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold shadow-lg shadow-indigo-600/30 transition flex items-center">
+                                <i class="fa-solid fa-file-invoice-dollar mr-2"></i> Registrar Reclamación y Pago
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- SECCIÓN DE REGISTROS EN MEMORIA (SESIÓN ACTUAL) -->
+        <div class="bg-white rounded-3xl shadow-xl border border-slate-200 p-6 sm:p-8 mb-10">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-200 gap-4">
+                <div>
+                    <h3 class="text-xl font-extrabold text-slate-900 flex items-center">
+                        <i class="fa-solid fa-database text-indigo-600 mr-2.5"></i> Registros en Memoria (Sesión Actual)
+                    </h3>
+                    <p class="text-xs text-slate-500 mt-1">Visualización en tiempo real de los datos capturados en los formularios anteriores antes de su persistencia en PostgreSQL.</p>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="inline-flex items-center px-3 py-1 rounded-xl text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                        Frontend Demo - Listo para integración con API REST (Port 5432)
+                    </span>
+                    <button @click="clearMemory" class="text-xs text-rose-600 hover:text-rose-700 font-semibold px-3 py-1.5 rounded-xl border border-rose-200 hover:bg-rose-50 transition">
+                        <i class="fa-solid fa-trash-can mr-1"></i> Limpiar Sesión
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabs internas para ver tablas -->
+            <div class="mt-6 flex space-x-2 border-b border-slate-200 pb-2">
+                <button @click="memoryTab = 'clientes'" :class="memoryTab === 'clientes' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" class="px-4 py-2 rounded-xl text-xs font-semibold transition">
+                    Clientes & Pólizas (<span x-text="memory.clientes.length"></span>)
+                </button>
+                <button @click="memoryTab = 'vehiculos'" :class="memoryTab === 'vehiculos' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" class="px-4 py-2 rounded-xl text-xs font-semibold transition">
+                    Vehículos (<span x-text="memory.vehiculos.length"></span>)
+                </button>
+                <button @click="memoryTab = 'reclamaciones'" :class="memoryTab === 'reclamaciones' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'" class="px-4 py-2 rounded-xl text-xs font-semibold transition">
+                    Reclamaciones & Pagos (<span x-text="memory.reclamaciones.length"></span>)
+                </button>
+            </div>
+
+            <!-- Tabla Clientes -->
+            <div x-show="memoryTab === 'clientes'" class="mt-4 overflow-x-auto">
+                <template x-if="memory.clientes.length === 0">
+                    <div class="text-center py-12 text-slate-400 text-sm">
+                        <i class="fa-solid fa-folder-open text-3xl mb-2 block"></i>
+                        No hay clientes ni pólizas registrados en esta sesión. Utilice la pestaña 1.
+                    </div>
+                </template>
+                <template x-if="memory.clientes.length > 0">
+                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead class="bg-slate-50 text-slate-600 uppercase text-[11px] font-bold">
+                            <tr>
+                                <th class="px-4 py-3 text-left">ID / Póliza</th>
+                                <th class="px-4 py-3 text-left">Cliente / RFC</th>
+                                <th class="px-4 py-3 text-left">Domicilio</th>
+                                <th class="px-4 py-3 text-left">Teléfono</th>
+                                <th class="px-4 py-3 text-left">Cobertura</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200">
+                            <template x-for="c in memory.clientes" :key="c.id_cliente">
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="px-4 py-3 font-medium text-slate-900">
+                                        <div class="text-indigo-600 font-bold" x-text="c.num_poliza"></div>
+                                        <div class="text-xs text-slate-400">ID: <span x-text="c.id_cliente"></span></div>
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <div class="font-semibold text-slate-900" x-text="c.nombre"></div>
+                                        <div class="text-xs text-slate-500 font-mono" x-text="c.rfc"></div>
+                                    </td>
+                                    <td class="px-4 py-3 text-xs text-slate-600">
+                                        <div x-text="c.calle + ' ' + c.numero_exterior + ', ' + c.colonia"></div>
+                                        <div x-text="c.ciudad + ' (CP: ' + c.codigo_postal + ')'"></div>
+                                    </td>
+                                    <td class="px-4 py-3 text-xs font-mono text-slate-700" x-text="c.telefono"></td>
+                                    <td class="px-4 py-3 text-xs font-medium text-slate-800" x-text="c.cobertura"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </template>
+            </div>
+
+            <!-- Tabla Vehículos -->
+            <div x-show="memoryTab === 'vehiculos'" class="mt-4 overflow-x-auto" x-cloak>
+                <template x-if="memory.vehiculos.length === 0">
+                    <div class="text-center py-12 text-slate-400 text-sm">
+                        <i class="fa-solid fa-car text-3xl mb-2 block"></i>
+                        No hay vehículos registrados en esta sesión. Utilice la pestaña 2.
+                    </div>
+                </template>
+                <template x-if="memory.vehiculos.length > 0">
+                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead class="bg-slate-50 text-slate-600 uppercase text-[11px] font-bold">
+                            <tr>
+                                <th class="px-4 py-3 text-left">Matrícula</th>
+                                <th class="px-4 py-3 text-left">Tipo</th>
+                                <th class="px-4 py-3 text-left">Detalle 1</th>
+                                <th class="px-4 py-3 text-left">Detalle 2</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200">
+                            <template x-for="v in memory.vehiculos" :key="v.matricula">
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="px-4 py-3 font-mono font-bold text-indigo-600" x-text="v.matricula"></td>
+                                    <td class="px-4 py-3">
+                                        <span class="px-2.5 py-1 rounded-full text-xs font-semibold"
+                                              :class="v.tipo_vehiculo === 'AUTOMOVIL' ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800'"
+                                              x-text="v.tipo_vehiculo"></span>
+                                    </td>
+                                    <td class="px-4 py-3 text-xs text-slate-700">
+                                        <template x-if="v.tipo_vehiculo === 'AUTOMOVIL'">
+                                            <span>Puertas: <strong x-text="v.num_puertas"></strong></span>
+                                        </template>
+                                        <template x-if="v.tipo_vehiculo === 'MOTOCICLETA'">
+                                            <span>Cilindrada: <strong x-text="v.cilindrada_cc + ' CC'"></strong></span>
+                                        </template>
+                                    </td>
+                                    <td class="px-4 py-3 text-xs text-slate-700">
+                                        <template x-if="v.tipo_vehiculo === 'AUTOMOVIL'">
+                                            <span>Transmisión: <strong x-text="v.tipo_transmision"></strong></span>
+                                        </template>
+                                        <template x-if="v.tipo_vehiculo === 'MOTOCICLETA'">
+                                            <span>Manillar: <strong x-text="v.tipo_manillar"></strong></span>
+                                        </template>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </template>
+            </div>
+
+            <!-- Tabla Reclamaciones -->
+            <div x-show="memoryTab === 'reclamaciones'" class="mt-4 overflow-x-auto" x-cloak>
+                <template x-if="memory.reclamaciones.length === 0">
+                    <div class="text-center py-12 text-slate-400 text-sm">
+                        <i class="fa-solid fa-file-invoice-dollar text-3xl mb-2 block"></i>
+                        No hay reclamaciones registradas en esta sesión. Utilice la pestaña 3.
+                    </div>
+                </template>
+                <template x-if="memory.reclamaciones.length > 0">
+                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead class="bg-slate-50 text-slate-600 uppercase text-[11px] font-bold">
+                            <tr>
+                                <th class="px-4 py-3 text-left">ID Accidente</th>
+                                <th class="px-4 py-3 text-left">Póliza</th>
+                                <th class="px-4 py-3 text-left">Núm. Pago</th>
+                                <th class="px-4 py-3 text-left">Monto (MXN)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200">
+                            <template x-for="r in memory.reclamaciones" :key="r.id_accidente">
+                                <tr class="hover:bg-slate-50 transition">
+                                    <td class="px-4 py-3 font-bold text-slate-900" x-text="r.id_accidente"></td>
+                                    <td class="px-4 py-3 font-mono text-indigo-600 font-semibold" x-text="r.num_poliza"></td>
+                                    <td class="px-4 py-3 text-slate-700" x-text="r.num_de_pago"></td>
+                                    <td class="px-4 py-3 font-bold text-emerald-600" x-text="'$' + Number(r.monto).toLocaleString('es-MX', {minimumFractionDigits: 2})"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </template>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- ARCHITECTURE MODAL -->
+    <div x-show="showArchitectureModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm" x-cloak>
+        <div @click.away="showArchitectureModal = false" class="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 border border-slate-200 space-y-6">
+            <div class="flex items-center justify-between border-b border-slate-200 pb-4">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-indigo-600 text-white p-2.5 rounded-xl">
+                        <i class="fa-solid fa-network-wired text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-extrabold text-slate-900">Arquitectura del Sistema & Integridad Referencial</h3>
+                        <p class="text-xs text-slate-500">Proyecto de Bases de Datos • ESCOM IPN • Base de Datos <code class="text-indigo-600">seguros_db</code></p>
+                    </div>
+                </div>
+                <button @click="showArchitectureModal = false" class="text-slate-400 hover:text-slate-600 p-2 rounded-xl hover:bg-slate-100 transition">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Architecture Diagram Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Step 1 -->
+                <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3">
+                    <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">1</div>
+                    <h4 class="font-bold text-slate-900 text-sm">Frontend Web (HTML/Tailwind/Alpine)</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Captura de formularios con validación estricta en cliente (Regex RFC <code class="text-indigo-600">^[A-Z&Ñ]{3,4}[0-9]{6}[A-Z0-9]{3}$</code>, CP de 5 dígitos, teléfono a 10 dígitos).
+                    </p>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3">
+                    <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">2</div>
+                    <h4 class="font-bold text-slate-900 text-sm">Capa de Backend / API REST</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Procesa las peticiones HTTP JSON, ejecuta transacciones ACID y mapea la jerarquía de herencia de vehículos (<code class="text-indigo-600">VEHICULO</code> base con subtipos <code class="text-indigo-600">AUTOMOVIL</code> y <code class="text-indigo-600">MOTOCICLETA</code>).
+                    </p>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200 space-y-3">
+                    <div class="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm">3</div>
+                    <h4 class="font-bold text-slate-900 text-sm">PostgreSQL (Docker Compose port 5432)</h4>
+                    <p class="text-xs text-slate-600 leading-relaxed">
+                        Base de datos normalizada con restricciones <code class="text-indigo-600">ON DELETE RESTRICT / CASCADE</code>, llaves foráneas diferibles y tipos numéricos de alta precisión para reclamaciones.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Referential Integrity Highlights -->
+            <div class="bg-indigo-50/60 p-6 rounded-2xl border border-indigo-100 space-y-3">
+                <h4 class="font-bold text-indigo-900 text-sm flex items-center">
+                    <i class="fa-solid fa-shield-check mr-2 text-indigo-600"></i> Reglas de Integridad Referencial Destacadas
+                </h4>
+                <ul class="text-xs text-indigo-950 space-y-2 list-disc list-inside">
+                    <li><strong>CLIENTE a POLIZA:</strong> <code class="bg-white px-1.5 py-0.5 rounded text-indigo-700">ON DELETE RESTRICT</code> para proteger pólizas activas ante eliminaciones accidentales de clientes.</li>
+                    <li><strong>VEHICULO a AUTOMOVIL / MOTOCICLETA:</strong> Relación de supertipo/subtipo con integridad estricta de matrícula.</li>
+                    <li><strong>RECLAMACION a PAGO_RECLAMACION:</strong> Llave foránea compuesta (<code class="bg-white px-1.5 py-0.5 rounded text-indigo-700">ID_ACCIDENTE, NUM_POLIZA, NUM_DE_PAGO</code>) asegurando trazabilidad de pagos financieros.</li>
+                </ul>
+            </div>
+
+            <div class="flex justify-end pt-2">
+                <button @click="showArchitectureModal = false" class="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-xl transition">
+                    Cerrar Ventana
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 py-8 border-t border-slate-800 mt-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs space-y-4 sm:space-y-0">
+            <div>
+                <p class="font-semibold text-slate-300">Escuela Superior de Cómputo (ESCOM) - IPN</p>
+                <p class="text-slate-500 mt-0.5">Unidad de Aprendizaje: Bases de Datos • Práctica de Gestión de Seguros</p>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="text-emerald-400 font-mono"><i class="fa-solid fa-circle text-[8px] mr-1"></i> PostgreSQL Container Ready</span>
+                <span>•</span>
+                <span>Frontend v2.5</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Alpine.js Application Logic -->
+    <script>
+        function insuranceApp() {
+            return {
+                activeTab: 1,
+                memoryTab: 'clientes',
+                showArchitectureModal: false,
+                toasts: [],
+                formCliente: {
+                    id_cliente: 1,
+                    rfc: '',
+                    nombre: '',
+                    codigo_postal: '',
+                    ciudad: '',
+                    calle: '',
+                    numero_exterior: '',
+                    colonia: '',
+                    telefono: '',
+                    num_poliza: '',
+                    cobertura: 'Amplia Plus (Daños, Robo, RC, Gastos Médicos)'
+                },
+                formVehiculo: {
+                    matricula: '',
+                    tipo_vehiculo: 'AUTOMOVIL',
+                    num_puertas: 4,
+                    tipo_transmision: 'AUTOMATICA',
+                    cilindrada_cc: 250,
+                    tipo_manillar: 'RECTO'
+                },
+                formReclamacion: {
+                    id_accidente: 101,
+                    num_poliza: '',
+                    num_de_pago: 'PAGO-01',
+                    monto: 15000.00
+                },
+                memory: {
+                    clientes: [
+                        {
+                            id_cliente: 1,
+                            rfc: 'VECJ880326XYZ',
+                            nombre: 'Juan Carlos Vázquez Estrada',
+                            codigo_postal: '07730',
+                            ciudad: 'Ciudad de México',
+                            calle: 'Av. Juan de Dios Bátiz',
+                            numero_exterior: 'S/N',
+                            colonia: 'Nueva Industrial Vallejo',
+                            telefono: '5512345678',
+                            num_poliza: 'POL-2026-001',
+                            cobertura: 'Amplia Plus (Daños, Robo, RC, Gastos Médicos)'
+                        }
+                    ],
+                    vehiculos: [
+                        {
+                            matricula: 'ABC-123-4',
+                            tipo_vehiculo: 'AUTOMOVIL',
+                            num_puertas: 4,
+                            tipo_transmision: 'AUTOMATICA',
+                            cilindrada_cc: null,
+                            tipo_manillar: null
+                        }
+                    ],
+                    reclamaciones: [
+                        {
+                            id_accidente: 501,
+                            num_poliza: 'POL-2026-001',
+                            num_de_pago: 'PAGO-01',
+                            monto: 18500.00
+                        }
+                    ]
+                },
+                addToast(title, message, type = 'success') {
+                    const id = Date.now();
+                    this.toasts.push({ id, title, message, type });
+                    setTimeout(() => {
+                        this.removeToast(id);
+                    }, 4000);
+                },
+                removeToast(id) {
+                    this.toasts = this.toasts.filter(t => t.id !== id);
+                },
+                validateRFC(rfc) {
+                    const rfcRegex = /^[A-Z&Ñ]{3,4}[0-9]{6}[A-Z0-9]{3}$/;
+                    return rfcRegex.test(rfc);
+                },
+                submitClientePoliza() {
+                    if (!this.validateRFC(this.formCliente.rfc)) {
+                        this.addToast('Error de Validación', 'El RFC ingresado no cumple con el formato oficial mexicano (ej. VECJ880326XYZ).', 'error');
+                        return;
+                    }
+                    if (this.formCliente.codigo_postal.length !== 5 || isNaN(this.formCliente.codigo_postal)) {
+                        this.addToast('Error de Validación', 'El Código Postal debe constar exactamente de 5 dígitos.', 'error');
+                        return;
+                    }
+                    if (this.formCliente.telefono.length !== 10 || isNaN(this.formCliente.telefono)) {
+                        this.addToast('Error de Validación', 'El Teléfono debe constar exactamente de 10 dígitos numéricos.', 'error');
+                        return;
+                    }
+
+                    // Push to memory
+                    this.memory.clientes.unshift({ ...this.formCliente });
+                    this.addToast('¡Registro Exitoso!', `Cliente ${this.formCliente.nombre} y Póliza ${this.formCliente.num_poliza} guardados en memoria correctamente.`);
+                    
+                    // Auto-fill num_poliza in other forms for convenience
+                    this.formReclamacion.num_poliza = this.formCliente.num_poliza;
+
+                    // Reset form partially
+                    this.formCliente.id_cliente++;
+                    this.formCliente.rfc = '';
+                    this.formCliente.nombre = '';
+                    this.formCliente.num_poliza = 'POL-2026-' + Math.floor(1000 + Math.random() * 9000);
+                },
+                submitVehiculo() {
+                    if (!this.formVehiculo.matricula) {
+                        this.addToast('Error de Validación', 'La matrícula del vehículo es obligatoria.', 'error');
+                        return;
+                    }
+                    this.memory.vehiculos.unshift({ ...this.formVehiculo });
+                    this.addToast('¡Vehículo Registrado!', `Vehículo ${this.formVehiculo.matricula} (${this.formVehiculo.tipo_vehiculo}) registrado con éxito.`);
+                    
+                    this.formVehiculo.matricula = '';
+                },
+                submitReclamacion() {
+                    this.memory.reclamaciones.unshift({ ...this.formReclamacion });
+                    this.addToast('¡Reclamación Registrada!', `Reclamación para Accidente #${this.formReclamacion.id_accidente} por $${Number(this.formReclamacion.monto).toLocaleString()} registrada con éxito.`);
+                    
+                    this.formReclamacion.id_accidente++;
+                },
+                clearMemory() {
+                    this.memory.clientes = [];
+                    this.memory.vehiculos = [];
+                    this.memory.reclamaciones = [];
+                    this.addToast('Memoria Limpia', 'Se han borrado todos los registros temporales de la sesión.', 'info');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

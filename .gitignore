@@ -1,0 +1,7 @@
+# Ignore folder
+IGNORE/
+IGNORE/**
+
+# System and OS files
+.DS_Store
+Thumbs.db
